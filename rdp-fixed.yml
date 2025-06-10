@@ -1,0 +1,37 @@
+name: Free RDP - 6 Hours
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 360
+
+    steps:
+    - name: Setup Ngrok
+      run: |
+        Invoke-WebRequest https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-stable-windows-amd64.zip -OutFile ngrok.zip
+        Expand-Archive ngrok.zip
+        .\ngrok\ngrok.exe authtoken 2MDLfCh7jsBLdQrB3pGGyj7YNQj_5AWGaN8SX45gB9S11yLY7
+
+    - name: Start RDP
+      run: |
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" -Name "fDenyTSConnections" -Value 0
+        net user runneradmin P@ssw0rd!
+        If (-not (Get-LocalGroupMember -Group "Administrators" | Where-Object { $_.Name -eq "runneradmin" })) {
+            Add-LocalGroupMember -Group "Administrators" -Member "runneradmin"
+        }
+        .\ngrok\ngrok.exe tcp 3389 &
+
+    - name: Display connection info
+      run: |
+        $url = (Invoke-WebRequest -Uri http://127.0.0.1:4040/api/tunnels).Content | ConvertFrom-Json
+        $public_url = $url.tunnels[0].public_url
+        Write-Host "===================================="
+        Write-Host "RDP Address: $public_url"
+        Write-Host "Username: runneradmin"
+        Write-Host "Password: P@ssw0rd!"
+        Write-Host "===================================="
+        Start-Sleep -Seconds 21600
